@@ -286,3 +286,44 @@ RSpec::Matchers.define :have_schedule_size_of_at_least do |size|
     "have schedule size of #{size}"
   end
 end
+
+RSpec::Matchers.define :have_queued_with_status do |*expected_args|
+  include InQueueHelper
+
+  chain :times do |num_times_queued|
+    @times = num_times_queued
+    @times_info = @times == 1 ? ' once' : " #{@times} times"
+  end
+
+  chain :once do
+    @times = 1
+    @times_info = ' once'
+  end
+
+  match do |actual|
+    matched = queue(actual).select do |entry|
+      klass = entry.fetch(:class)
+      args = entry.fetch(:args)
+      #first element in the resque status args is uuid
+      klass.to_s == actual.to_s && expected_args == args.drop(1)
+    end
+
+    if @times
+      matched.size == @times
+    else
+      matched.size > 0
+    end
+  end
+
+  failure_message_for_should do |actual|
+    "expected that #{actual} would have [#{expected_args.join(', ')}] queued#{@times_info}"
+  end
+
+  failure_message_for_should_not do |actual|
+    "expected that #{actual} would not have [#{expected_args.join(', ')}] queued#{@times_info}"
+  end
+
+  description do
+    "have queued arguments of [#{expected_args.join(', ')}]#{@times_info}"
+  end
+end
