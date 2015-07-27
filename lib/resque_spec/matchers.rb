@@ -1,11 +1,14 @@
-require 'rspec/core'
 require 'rspec/expectations'
+require 'rspec/core'
 require 'rspec/mocks'
 
 module ArgsHelper
   private
-
   def match_args(expected_args, args)
+    #See http://www.rubydoc.info/gems/rspec-mocks/RSpec/Mocks/ArgumentMatchers
+    any_args_index = expected_args.index(any_args)
+    return true if any_args_index.present? && args.present?
+
     arg_list_matcher = RSpec::Mocks::ArgumentListMatcher.new(expected_args)
     arg_list_matcher.args_match?(args)
   end
@@ -102,16 +105,20 @@ RSpec::Matchers.define :have_queued do |*expected_args|
     end
   end
 
+  argument_description = case expected_args.first
+                         when RSpec::Mocks::ArgumentMatchers::AnyArgsMatcher then "any arguments"
+                         else "[#{expected_args.join(', ')}]"
+                         end
   failure_message do |actual|
-    "expected that #{actual} would have [#{expected_args.join(', ')}] queued#{@times_info}"
+    "expected that #{actual} would have queued#{@times_info} with #{argument_description}"
   end
 
   failure_message_when_negated do |actual|
-    "expected that #{actual} would not have [#{expected_args.join(', ')}] queued#{@times_info}"
+    "expected that #{actual} would not have queued#{@times_info} with #{argument_description}"
   end
 
   description do
-    "have queued arguments of [#{expected_args.join(', ')}]#{@times_info}"
+    "have queued arguments of #{argument_description}#{@times_info}"
   end
 end
 
@@ -200,7 +207,7 @@ RSpec::Matchers.define :have_scheduled do |*expected_args|
       args_match = match_args(expected_args, entry[:args])
 
       time_matches = if @time
-        entry[:time].to_i == @time.to_i
+        entry[:time] == @time
       elsif @interval
         entry[:time].to_i == (entry[:stored_at] + @interval).to_i
       else
@@ -286,3 +293,4 @@ RSpec::Matchers.define :have_schedule_size_of_at_least do |size|
     "have schedule size of #{size}"
   end
 end
+
